@@ -79,8 +79,13 @@
       p1.y = p2.y = canvas.height / 2 - paddleHeight / 2;
       ball.x = canvas.width / 2 - ballSize / 2;
       ball.y = canvas.height / 2 - ballSize / 2;
-      ball.vx = (Math.random() > 0.5 ? 5 : -5);
-      ball.vy = (Math.random() * 4 - 2);
+      
+      // Losowanie kąta w zakresie 0-360 stopni
+      const angle = Math.random() * 2 * Math.PI; // losowy kąt w radianach
+      
+      // Ustawienie prędkości na podstawie kąta
+      ball.vx = Math.cos(angle) * 5; // prędkość w poziomie
+      ball.vy = Math.sin(angle) * 5; // prędkość w pionie
     }
 
     function gameLoop() {
