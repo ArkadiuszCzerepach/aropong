@@ -2,34 +2,77 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Pong</title>
+  <title>Pong z Menu</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       background: #000;
-      overflow: hidden;
+      font-family: sans-serif;
+      color: white;
     }
-
     canvas {
       display: block;
       margin: auto;
       background: #111;
     }
+    #menu {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.8);
+      z-index: 10;
+    }
+    .btn {
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 20px;
+      background: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: 0.3s;
+    }
+    .btn:hover {
+      background: #555;
+    }
+    #timer {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 24px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
+  <div id="menu">
+    <h1>PONG</h1>
+    <button class="btn" onclick="startGame('bot')">Graj z botem</button>
+    <button class="btn" onclick="startGame('1v1')">1 vs 1 (dwóch graczy)</button>
+  </div>
+
+  <div id="timer">Czas: 0</div>
   <canvas id="pong" width="800" height="500"></canvas>
 
   <script>
     const canvas = document.getElementById("pong");
     const ctx = canvas.getContext("2d");
 
+    const timerDisplay = document.getElementById("timer");
+    const menu = document.getElementById("menu");
+
     const paddleWidth = 10, paddleHeight = 100;
-    const player = {
+    let gameMode = "bot";
+    let gameStarted = false;
+    let timeElapsed = 0;
+
+    const player1 = {
       x: 0,
       y: canvas.height / 2 - paddleHeight / 2,
       width: paddleWidth,
@@ -38,13 +81,13 @@
       dy: 0
     };
 
-    const ai = {
+    const player2 = {
       x: canvas.width - paddleWidth,
       y: canvas.height / 2 - paddleHeight / 2,
       width: paddleWidth,
       height: paddleHeight,
       color: "white",
-      dy: 2
+      dy: 0
     };
 
     const ball = {
@@ -79,13 +122,13 @@
     function draw() {
       drawRect(0, 0, canvas.width, canvas.height, "#111");
       drawNet();
-      drawRect(player.x, player.y, player.width, player.height, player.color);
-      drawRect(ai.x, ai.y, ai.width, ai.height, ai.color);
+      drawRect(player1.x, player1.y, player1.width, player1.height, player1.color);
+      drawRect(player2.x, player2.y, player2.width, player2.height, player2.color);
       drawCircle(ball.x, ball.y, ball.radius, ball.color);
     }
 
     function update() {
-      // Poruszanie piłki
+      // Piłka
       ball.x += ball.dx;
       ball.y += ball.dy;
 
@@ -94,33 +137,35 @@
         ball.dy *= -1;
       }
 
-      // Odbicie od gracza
-      if (ball.x - ball.radius < player.x + player.width &&
-          ball.y > player.y && ball.y < player.y + player.height) {
+      // Gracz 1
+      if (ball.x - ball.radius < player1.x + player1.width &&
+          ball.y > player1.y && ball.y < player1.y + player1.height) {
         ball.dx *= -1;
       }
 
-      // Odbicie od AI
-      if (ball.x + ball.radius > ai.x &&
-          ball.y > ai.y && ball.y < ai.y + ai.height) {
+      // Gracz 2 / bot
+      if (ball.x + ball.radius > player2.x &&
+          ball.y > player2.y && ball.y < player2.y + player2.height) {
         ball.dx *= -1;
       }
 
-      // AI - proste śledzenie piłki
-      if (ai.y + ai.height / 2 < ball.y) {
-        ai.y += ai.dy;
+      // Ruch gracza 1
+      player1.y += player1.dy;
+      player1.y = Math.max(0, Math.min(canvas.height - player1.height, player1.y));
+
+      // Ruch gracza 2 (bot lub gracz)
+      if (gameMode === "bot") {
+        if (player2.y + player2.height / 2 < ball.y) {
+          player2.y += 3;
+        } else {
+          player2.y -= 3;
+        }
       } else {
-        ai.y -= ai.dy;
+        player2.y += player2.dy;
+        player2.y = Math.max(0, Math.min(canvas.height - player2.height, player2.y));
       }
 
-      // Gracz
-      player.y += player.dy;
-
-      // Zatrzymanie ruchu gracza w granicach ekranu
-      if (player.y < 0) player.y = 0;
-      if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
-
-      // Reset po punktach
+      // Reset po stracie
       if (ball.x < 0 || ball.x > canvas.width) {
         ball.x = canvas.width / 2;
         ball.y = canvas.height / 2;
@@ -129,22 +174,46 @@
     }
 
     function loop() {
+      if (!gameStarted) return;
       update();
       draw();
       requestAnimationFrame(loop);
     }
 
-    // Sterowanie
+    // Obsługa klawiszy
     document.addEventListener("keydown", e => {
-      if (e.key === "ArrowUp") player.dy = -6;
-      if (e.key === "ArrowDown") player.dy = 6;
+      if (e.key === "ArrowUp") player1.dy = -6;
+      if (e.key === "ArrowDown") player1.dy = 6;
+
+      if (gameMode === "1v1") {
+        if (e.key === "w") player2.dy = -6;
+        if (e.key === "s") player2.dy = 6;
+      }
     });
 
     document.addEventListener("keyup", e => {
-      if (e.key === "ArrowUp" || e.key === "ArrowDown") player.dy = 0;
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") player1.dy = 0;
+
+      if (gameMode === "1v1") {
+        if (e.key === "w" || e.key === "s") player2.dy = 0;
+      }
     });
 
-    loop();
+    function startGame(mode) {
+      gameMode = mode;
+      menu.style.display = "none";
+      gameStarted = true;
+      loop();
+      startTimer();
+    }
+
+    function startTimer() {
+      setInterval(() => {
+        if (!gameStarted) return;
+        timeElapsed++;
+        timerDisplay.innerText = `Czas: ${timeElapsed}`;
+      }, 1000);
+    }
   </script>
 </body>
 </html>
