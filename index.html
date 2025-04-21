@@ -2,13 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pong</title>
   <style>
-    body { margin: 0; background: black; color: white; font-family: sans-serif; text-align: center; }
+    body { margin: 0; background: black; color: white; font-family: sans-serif; }
     canvas { display: block; margin: auto; background: #222; }
-    .menu { margin-top: 50px; }
-    .menu button { font-size: 20px; margin: 10px; padding: 10px 20px; }
+    .menu {
+      margin-top: 50px; text-align: center;
+    }
+    .menu button {
+      font-size: 20px; margin: 10px; padding: 10px 20px;
+    }
+    #backButton {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: #444;
+      color: white;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -18,32 +33,53 @@
     <button onclick="startGame('playerVsBot')">Gracz vs Bot</button>
     <button onclick="startGame('botVsBot')">Bot vs Bot</button>
   </div>
+
+  <button id="backButton" onclick="returnToMenu()">⟵ Menu</button>
   <canvas id="gameCanvas" width="800" height="500" style="display: none;"></canvas>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+    const backButton = document.getElementById("backButton");
+
     let up1 = false, down1 = false, up2 = false, down2 = false;
     let mode = "1v1";
 
     const paddleWidth = 10, paddleHeight = 100, ballSize = 10;
     let p1 = { x: 10, y: 200 }, p2 = { x: 780, y: 200 };
     let ball = { x: 395, y: 245, vx: 5, vy: 3 };
+    let score1 = 0, score2 = 0;
+    let startTime = 0, gameTime = 0;
+    let speedTimer = 0;
     let interval;
 
     function startGame(selectedMode) {
       mode = selectedMode;
       document.getElementById("menu").style.display = "none";
       canvas.style.display = "block";
+      backButton.style.display = "inline-block";
+
+      score1 = 0;
+      score2 = 0;
+      startTime = Date.now();
+      speedTimer = 0;
       reset();
+      clearInterval(interval);
       interval = setInterval(gameLoop, 1000 / 60);
+    }
+
+    function returnToMenu() {
+      clearInterval(interval);
+      canvas.style.display = "none";
+      backButton.style.display = "none";
+      document.getElementById("menu").style.display = "block";
     }
 
     function reset() {
       p1.y = p2.y = canvas.height / 2 - paddleHeight / 2;
       ball.x = canvas.width / 2 - ballSize / 2;
       ball.y = canvas.height / 2 - ballSize / 2;
-      ball.vx = Math.random() > 0.5 ? 5 : -5;
+      ball.vx = (Math.random() > 0.5 ? 5 : -5);
       ball.vy = (Math.random() * 4 - 2);
     }
 
@@ -53,19 +89,13 @@
     }
 
     function update() {
-      // Player input
-      if (mode !== "botVsBot") {
-        if (up1) p1.y -= 5;
-        if (down1) p1.y += 5;
-      }
-      if (mode === "1v1") {
-        if (up2) p2.y -= 5;
-        if (down2) p2.y += 5;
-      }
+      if (up1 && mode !== "botVsBot") p1.y -= 5;
+      if (down1 && mode !== "botVsBot") p1.y += 5;
+      if (up2 && mode === "1v1") p2.y -= 5;
+      if (down2 && mode === "1v1") p2.y += 5;
 
-      // Bot logic
       if (mode === "playerVsBot" || mode === "botVsBot") {
-        const target = ball.y - paddleHeight / 2;
+        let target = ball.y - paddleHeight / 2;
         if (mode === "playerVsBot") {
           if (p2.y < target) p2.y += 4;
           if (p2.y > target) p2.y -= 4;
@@ -77,18 +107,14 @@
         }
       }
 
-      // Clamp paddles
       p1.y = Math.max(0, Math.min(canvas.height - paddleHeight, p1.y));
       p2.y = Math.max(0, Math.min(canvas.height - paddleHeight, p2.y));
 
-      // Ball movement
       ball.x += ball.vx;
       ball.y += ball.vy;
 
-      // Wall collision
       if (ball.y <= 0 || ball.y + ballSize >= canvas.height) ball.vy *= -1;
 
-      // Paddle collision
       if (
         ball.x <= p1.x + paddleWidth &&
         ball.y + ballSize >= p1.y &&
@@ -107,20 +133,39 @@
         ball.x = p2.x - ballSize;
       }
 
-      // Score reset (just reset position)
-      if (ball.x < 0 || ball.x > canvas.width) reset();
+      if (ball.x < 0) {
+        score2++;
+        reset();
+      }
+      if (ball.x > canvas.width) {
+        score1++;
+        reset();
+      }
+
+      // Liczenie czasu
+      const now = Date.now();
+      gameTime = Math.floor((now - startTime) / 1000);
+
+      // Co 10 sek zwiększ prędkość piłki
+      if (Math.floor(gameTime / 10) > speedTimer) {
+        speedTimer = Math.floor(gameTime / 10);
+        ball.vx *= 1.1;
+        ball.vy *= 1.1;
+      }
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw paddles
       ctx.fillStyle = "white";
       ctx.fillRect(p1.x, p1.y, paddleWidth, paddleHeight);
       ctx.fillRect(p2.x, p2.y, paddleWidth, paddleHeight);
-
-      // Draw ball
       ctx.fillRect(ball.x, ball.y, ballSize, ballSize);
+
+      // Wyniki i czas w prawym górnym rogu
+      ctx.font = "20px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`P1: ${score1}  P2: ${score2}  |  Czas: ${gameTime}s`, canvas.width - 10, 30);
     }
 
     document.addEventListener("keydown", (e) => {
