@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      margin: auto;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="pong" width="800" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById("pong");
+    const ctx = canvas.getContext("2d");
+
+    const paddleWidth = 10, paddleHeight = 100;
+    const player = {
+      x: 0,
+      y: canvas.height / 2 - paddleHeight / 2,
+      width: paddleWidth,
+      height: paddleHeight,
+      color: "white",
+      dy: 0
+    };
+
+    const ai = {
+      x: canvas.width - paddleWidth,
+      y: canvas.height / 2 - paddleHeight / 2,
+      width: paddleWidth,
+      height: paddleHeight,
+      color: "white",
+      dy: 2
+    };
+
+    const ball = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 7,
+      speed: 5,
+      dx: 5,
+      dy: 5,
+      color: "white"
+    };
+
+    function drawRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    }
+
+    function drawCircle(x, y, r, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawNet() {
+      for (let i = 0; i < canvas.height; i += 15) {
+        drawRect(canvas.width / 2 - 1, i, 2, 10, "white");
+      }
+    }
+
+    function draw() {
+      drawRect(0, 0, canvas.width, canvas.height, "#111");
+      drawNet();
+      drawRect(player.x, player.y, player.width, player.height, player.color);
+      drawRect(ai.x, ai.y, ai.width, ai.height, ai.color);
+      drawCircle(ball.x, ball.y, ball.radius, ball.color);
+    }
+
+    function update() {
+      // Poruszanie piłki
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+
+      // Odbicie od góry i dołu
+      if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+        ball.dy *= -1;
+      }
+
+      // Odbicie od gracza
+      if (ball.x - ball.radius < player.x + player.width &&
+          ball.y > player.y && ball.y < player.y + player.height) {
+        ball.dx *= -1;
+      }
+
+      // Odbicie od AI
+      if (ball.x + ball.radius > ai.x &&
+          ball.y > ai.y && ball.y < ai.y + ai.height) {
+        ball.dx *= -1;
+      }
+
+      // AI - proste śledzenie piłki
+      if (ai.y + ai.height / 2 < ball.y) {
+        ai.y += ai.dy;
+      } else {
+        ai.y -= ai.dy;
+      }
+
+      // Gracz
+      player.y += player.dy;
+
+      // Zatrzymanie ruchu gracza w granicach ekranu
+      if (player.y < 0) player.y = 0;
+      if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+
+      // Reset po punktach
+      if (ball.x < 0 || ball.x > canvas.width) {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.dx *= -1;
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // Sterowanie
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowUp") player.dy = -6;
+      if (e.key === "ArrowDown") player.dy = 6;
+    });
+
+    document.addEventListener("keyup", e => {
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") player.dy = 0;
+    });
+
+    loop();
+  </script>
+</body>
+</html>
